@@ -7,7 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Jupyter + data science packages (pyspark already on PYTHONPATH via SPARK_HOME)
-RUN pip install --no-cache-dir pandas==2.0.3 pyarrow==17.0.0 notebook
+RUN pip install --no-cache-dir \
+    pandas==2.0.3 \
+    pyarrow==17.0.0 \
+    "jupyterlab==4.2.5" \
+    "notebook==7.2.2"
 
 # Standalone scala REPL — spark-shell is already bundled; this adds `scala`
 ENV SCALA_HOME=/opt/scala \
