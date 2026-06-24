@@ -12,19 +12,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3.8 \
         python3.8-dev \
         python3-pip \
-        curl \
         procps \
     && rm -rf /var/lib/apt/lists/* \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 \
     && update-alternatives --install /usr/bin/python  python  /usr/bin/python3.8 1
 
-RUN curl -fsSL "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz" \
-    | tar -xz -C /opt \
-    && mv "/opt/spark-${SPARK_VERSION}-bin-hadoop3" "${SPARK_HOME}"
+# Tarballs are pre-downloaded into downloads/ before the build (see README).
+# Using COPY avoids network calls inside Docker and makes the build reliable.
+COPY downloads/spark-${SPARK_VERSION}-bin-hadoop3.tgz /tmp/spark.tgz
+RUN tar -xz -C /opt -f /tmp/spark.tgz \
+    && mv "/opt/spark-${SPARK_VERSION}-bin-hadoop3" "${SPARK_HOME}" \
+    && rm /tmp/spark.tgz
 
-RUN curl -fsSL "https://scala-lang.org/files/archive/scala-${SCALA_VERSION}.tgz" \
-    | tar -xz -C /opt \
-    && mv "/opt/scala-${SCALA_VERSION}" "${SCALA_HOME}"
+COPY downloads/scala-${SCALA_VERSION}.tgz /tmp/scala.tgz
+RUN tar -xz -C /opt -f /tmp/scala.tgz \
+    && mv "/opt/scala-${SCALA_VERSION}" "${SCALA_HOME}" \
+    && rm /tmp/scala.tgz
 
 COPY wheels/ /wheels/
 

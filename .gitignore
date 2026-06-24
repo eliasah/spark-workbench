@@ -1,6 +1,9 @@
 # Local environment — never commit real paths or secrets
 .env
 
+# Build asset tarballs — download once per machine, do not commit
+downloads/
+
 # Wheel cache — download once per machine, do not commit
 wheels/
 

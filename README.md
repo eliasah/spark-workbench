@@ -14,12 +14,13 @@ archives are external assets that each developer supplies on their own machine.
 |---|---|---|
 | Code & notebooks | this repo (`notebooks/`, `src/`) | committed |
 | Docker image | built locally from `spark/Dockerfile` | `docker compose build` |
+| Spark + Scala tarballs | `downloads/` (gitignored) | `curl` — see below |
 | Python packages | `wheels/` (gitignored) | `pip download` — see below |
 | Data | arbitrary host path | `.env` → Docker volume mount |
 
-Because `wheels/` and data are not committed, every developer downloads them
-once and configures their own local path.  CI servers or new machines reproduce
-the environment by following the same two-step process.
+Because `downloads/`, `wheels/`, and data are not committed, every developer
+downloads them once and configures their own local path. CI servers or new
+machines reproduce the environment by following the same steps.
 
 ---
 
@@ -44,7 +45,29 @@ stays clean.
 
 ---
 
-### 2 — Download Python wheels (once per machine)
+### 2 — Download Spark and Scala tarballs (once per machine)
+
+The Dockerfile uses `COPY` for both Spark and Scala instead of downloading
+them at build time. This avoids network calls inside Docker and keeps the
+build reliable on slow or rate-limited connections.
+
+```bash
+mkdir -p downloads
+
+# Apache Spark 3.5.1 (~300 MB)
+curl -fsSL -o downloads/spark-3.5.1-bin-hadoop3.tgz \
+  https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz
+
+# Scala 2.12.18 (~100 MB)
+curl -fsSL -o downloads/scala-2.12.18.tgz \
+  https://scala-lang.org/files/archive/scala-2.12.18.tgz
+```
+
+> The `downloads/` directory is gitignored — do not commit it.
+
+---
+
+### 3 — Download Python wheels (once per machine)
 
 Wheels must be downloaded **before** the first `docker compose build` because
 the Docker build runs fully offline after this step.
@@ -87,7 +110,7 @@ pip download --dest wheels pyspark==3.5.1 py4j==0.10.9.7 notebook
 
 ---
 
-### 3 — Build the image
+### 4 — Build the image
 
 ```bash
 docker compose build
@@ -99,7 +122,7 @@ needed at build time.
 
 ---
 
-### 4 — Run
+### 5 — Run
 
 ```bash
 docker compose up
@@ -199,11 +222,12 @@ applies to every process in the container.
 ├── .env.example            # template — copy to .env and edit
 ├── .gitignore
 ├── README.md
+├── downloads/              # Spark + Scala tarballs (gitignored — download locally)
 ├── notebooks/              # Jupyter notebooks (committed)
 ├── src/                    # shared Python source (committed)
 ├── spark/
 │   └── Dockerfile          # image definition
-└── wheels/                 # wheel cache (gitignored — download locally)
+└── wheels/                 # Python wheel cache (gitignored — download locally)
 ```
 
 ---
