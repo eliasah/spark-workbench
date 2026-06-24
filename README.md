@@ -218,4 +218,4 @@ applies to every process in the container.
 | Python | 3.8 |
 | pandas | 2.0.3 |
 | pyarrow | 17.0.0 |
-| JDK | OpenJDK 11 |
+| JDK | Eclipse Temurin 11 (Ubuntu 20.04) |

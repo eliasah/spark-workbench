@@ -1,4 +1,4 @@
-FROM openjdk:11-slim
+FROM eclipse-temurin:11-jdk-focal
 
 ENV SPARK_VERSION=3.5.1 \
     SCALA_VERSION=2.12.18 \
