@@ -1,44 +1,25 @@
-FROM eclipse-temurin:11-jdk-focal
+FROM apache/spark:3.5.1-scala2.12-java11-python3-ubuntu
 
-ENV SPARK_VERSION=3.5.1 \
-    SCALA_VERSION=2.12.18 \
-    SPARK_HOME=/opt/spark \
-    SCALA_HOME=/opt/scala \
-    PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.7-src.zip \
-    PYSPARK_PYTHON=python3 \
-    PATH="/opt/spark/bin:/opt/scala/bin:/usr/local/bin:${PATH}"
+USER root
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3.8 \
-        python3.8-dev \
-        python3-pip \
-        procps \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 \
-    && update-alternatives --install /usr/bin/python  python  /usr/bin/python3.8 1
+# Install curl (needed for standalone Scala below) and clean apt cache
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Tarballs are pre-downloaded into downloads/ before the build (see README).
-# Using COPY avoids network calls inside Docker and makes the build reliable.
-COPY downloads/spark-${SPARK_VERSION}-bin-hadoop3.tgz /tmp/spark.tgz
-RUN tar -xz -C /opt -f /tmp/spark.tgz \
-    && mv "/opt/spark-${SPARK_VERSION}-bin-hadoop3" "${SPARK_HOME}" \
-    && rm /tmp/spark.tgz
+# Jupyter + data science packages (pyspark already on PYTHONPATH via SPARK_HOME)
+RUN pip install --no-cache-dir pandas==2.0.3 pyarrow==17.0.0 notebook
 
-COPY downloads/scala-${SCALA_VERSION}.tgz /tmp/scala.tgz
-RUN tar -xz -C /opt -f /tmp/scala.tgz \
-    && mv "/opt/scala-${SCALA_VERSION}" "${SCALA_HOME}" \
+# Standalone scala REPL — spark-shell is already bundled; this adds `scala`
+ENV SCALA_HOME=/opt/scala \
+    PATH="/opt/scala/bin:${PATH}"
+
+RUN curl -fsSL -o /tmp/scala.tgz \
+      https://scala-lang.org/files/archive/scala-2.12.18.tgz \
+    && tar -xz -C /opt -f /tmp/scala.tgz \
+    && mv /opt/scala-2.12.18 /opt/scala \
     && rm /tmp/scala.tgz
 
-COPY wheels/ /wheels/
-
-RUN pip3 install --no-index --find-links=/wheels \
-        pandas==2.0.3 \
-        pyarrow==17.0.0 \
-        pyspark==3.5.1 \
-        notebook
-
 WORKDIR /workspace
-
 EXPOSE 8888 4040
 
 CMD ["jupyter", "notebook", \

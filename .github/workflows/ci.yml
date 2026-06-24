@@ -13,52 +13,6 @@ jobs:
       - uses: actions/checkout@v4
 
       # ------------------------------------------------------------------
-      # Spark + Scala tarballs: large downloads (~300 MB + ~100 MB).
-      # Cached by version so we only re-download when versions change.
-      # The Dockerfile uses COPY instead of curl, so these must exist
-      # in downloads/ before docker compose build.
-      # ------------------------------------------------------------------
-      - name: Cache Spark and Scala tarballs
-        id: cache-tarballs
-        uses: actions/cache@v4
-        with:
-          path: downloads/
-          key: tarballs-spark3.5.1-scala2.12.18
-
-      - name: Download Spark and Scala tarballs
-        if: steps.cache-tarballs.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p downloads
-          curl -fsSL -o downloads/spark-3.5.1-bin-hadoop3.tgz \
-            https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz
-          curl -fsSL -o downloads/scala-2.12.18.tgz \
-            https://scala-lang.org/files/archive/scala-2.12.18.tgz
-
-      # ------------------------------------------------------------------
-      # Python wheels: cached by exact package versions.
-      # ------------------------------------------------------------------
-      - name: Cache wheels
-        id: cache-wheels
-        uses: actions/cache@v4
-        with:
-          path: wheels/
-          key: wheels-cp38-pandas2.0.3-pyarrow17.0.0-pyspark3.5.1-notebook
-
-      - name: Download Python wheels
-        if: steps.cache-wheels.outputs.cache-hit != 'true'
-        run: |
-          # pandas and pyarrow have C extensions — must be platform-specific wheels.
-          pip download --dest wheels \
-            --platform manylinux_2_17_x86_64 \
-            --implementation cp --python-version 38 --abi cp38 \
-            --only-binary=:all: \
-            pandas==2.0.3 pyarrow==17.0.0
-
-          # pyspark and notebook are pure-Python (none-any wheels).
-          # --platform + --only-binary causes pip to reject them, so download separately.
-          pip download --dest wheels pyspark==3.5.1 py4j==0.10.9.7 notebook
-
-      # ------------------------------------------------------------------
       # Environment: give the compose file a valid DATAMART_HOST_PATH.
       # ------------------------------------------------------------------
       - name: Prepare .env and datamart directory
@@ -67,7 +21,8 @@ jobs:
           echo "DATAMART_HOST_PATH=/tmp/datamart" > .env
 
       # ------------------------------------------------------------------
-      # Build
+      # Build: pulls apache/spark from Docker Hub (layered CDN cache),
+      # then pip-installs pandas / pyarrow / notebook on top.
       # ------------------------------------------------------------------
       - name: Build Docker image
         run: docker compose build

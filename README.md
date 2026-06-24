@@ -3,8 +3,8 @@
 ![CI](https://github.com/eliasah/spark-workbench/actions/workflows/ci.yml/badge.svg)
 
 A Dockerized Spark 3.5.1 + Jupyter workspace for local data exploration.  
-The repository contains only infrastructure — large data files and Python wheel
-archives are external assets that each developer supplies on their own machine.
+The repository contains only infrastructure — large data files are external
+assets mounted at runtime.
 
 ---
 
@@ -14,13 +14,12 @@ archives are external assets that each developer supplies on their own machine.
 |---|---|---|
 | Code & notebooks | this repo (`notebooks/`, `src/`) | committed |
 | Docker image | built locally from `spark/Dockerfile` | `docker compose build` |
-| Spark + Scala tarballs | `downloads/` (gitignored) | `curl` — see below |
-| Python packages | `wheels/` (gitignored) | `pip download` — see below |
+| Base runtime | Docker Hub (`apache/spark:3.5.1-…`) | pulled automatically |
 | Data | arbitrary host path | `.env` → Docker volume mount |
 
-Because `downloads/`, `wheels/`, and data are not committed, every developer
-downloads them once and configures their own local path. CI servers or new
-machines reproduce the environment by following the same steps.
+The base image (`apache/spark`) is pulled from Docker Hub and already contains
+Spark, Java 11, and Python 3. The Dockerfile only adds pandas, pyarrow,
+notebook, and the standalone Scala REPL on top.
 
 ---
 
@@ -39,90 +38,22 @@ data directory:
 DATAMART_HOST_PATH=/path/to/local/datamart
 ```
 
-That folder will be mounted into the container at `/datamart`.  
-Different machines can point to different paths; the committed `.env.example`
-stays clean.
+That folder will be mounted into the container at `/datamart`.
 
 ---
 
-### 2 — Download Spark and Scala tarballs (once per machine)
-
-The Dockerfile uses `COPY` for both Spark and Scala instead of downloading
-them at build time. This avoids network calls inside Docker and keeps the
-build reliable on slow or rate-limited connections.
-
-```bash
-mkdir -p downloads
-
-# Apache Spark 3.5.1 (~300 MB)
-curl -fsSL -o downloads/spark-3.5.1-bin-hadoop3.tgz \
-  https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz
-
-# Scala 2.12.18 (~100 MB)
-curl -fsSL -o downloads/scala-2.12.18.tgz \
-  https://scala-lang.org/files/archive/scala-2.12.18.tgz
-```
-
-> The `downloads/` directory is gitignored — do not commit it.
-
----
-
-### 3 — Download Python wheels (once per machine)
-
-Wheels must be downloaded **before** the first `docker compose build` because
-the Docker build runs fully offline after this step.
-
-Two commands are required because `pandas` and `pyarrow` contain C extensions
-and need platform-specific manylinux binaries, while `pyspark` and `notebook`
-are pure Python and must be downloaded **without** the `--platform` flag
-(pip rejects their `none-any` wheels when a specific platform is requested).
-
-**Linux / macOS:**
-
-```bash
-# C-extension packages — download the manylinux binary wheels
-pip download --dest wheels \
-  --platform manylinux_2_17_x86_64 \
-  --implementation cp --python-version 38 --abi cp38 \
-  --only-binary=:all: \
-  pandas==2.0.3 pyarrow==17.0.0
-
-# Pure-Python packages — no platform flag needed
-pip download --dest wheels pyspark==3.5.1 py4j==0.10.9.7 notebook
-```
-
-**Windows (PowerShell):**
-
-```powershell
-# C-extension packages
-pip download --dest wheels `
-  --platform manylinux_2_17_x86_64 `
-  --implementation cp --python-version 38 --abi cp38 `
-  --only-binary=:all: `
-  pandas==2.0.3 pyarrow==17.0.0
-
-# Pure-Python packages
-pip download --dest wheels pyspark==3.5.1 py4j==0.10.9.7 notebook
-```
-
-> All packages and their transitive dependencies are stored in `wheels/`.
-> The `wheels/` directory is gitignored — do not commit it.
-
----
-
-### 4 — Build the image
+### 2 — Build the image
 
 ```bash
 docker compose build
 ```
 
-The build copies the contents of `wheels/` into the image and installs all
-packages with `--no-index --find-links`, so no outbound network access is
-needed at build time.
+Docker pulls the official Spark base image from Docker Hub, then installs
+pandas, pyarrow, and notebook on top. No manual downloads required.
 
 ---
 
-### 5 — Run
+### 3 — Run
 
 ```bash
 docker compose up
@@ -179,7 +110,7 @@ The image ships two Scala entry points:
 | `spark-shell` | Spark Scala REPL — `SparkContext` and `SparkSession` pre-wired |
 | `scala` | Standalone Scala 2.12 REPL (no Spark context) |
 
-Both commands are on PATH inside the container.  Open a shell into a running
+Both commands are on PATH inside the container. Open a shell into a running
 container to use them:
 
 ```bash
@@ -209,9 +140,6 @@ df.show(5)
 df.groupBy("category").count().orderBy($"count".desc).show()
 ```
 
-`/datamart` is available inside the shell because the same volume mount
-applies to every process in the container.
-
 ---
 
 ## Project structure
@@ -222,12 +150,10 @@ applies to every process in the container.
 ├── .env.example            # template — copy to .env and edit
 ├── .gitignore
 ├── README.md
-├── downloads/              # Spark + Scala tarballs (gitignored — download locally)
 ├── notebooks/              # Jupyter notebooks (committed)
 ├── src/                    # shared Python source (committed)
-├── spark/
-│   └── Dockerfile          # image definition
-└── wheels/                 # Python wheel cache (gitignored — download locally)
+└── spark/
+    └── Dockerfile          # image definition
 ```
 
 ---
@@ -237,9 +163,8 @@ applies to every process in the container.
 | Package | Version |
 |---|---|
 | Apache Spark | 3.5.1 |
-| pyspark | 3.5.1 |
-| Scala | 2.12.18 |
-| Python | 3.8 |
+| Scala | 2.12 |
+| Java | 11 |
 | pandas | 2.0.3 |
 | pyarrow | 17.0.0 |
-| JDK | Eclipse Temurin 11 (Ubuntu 20.04) |
+| Base image | `apache/spark:3.5.1-scala2.12-java11-python3-ubuntu` |

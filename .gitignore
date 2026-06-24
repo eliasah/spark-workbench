@@ -1,10 +1,10 @@
 # Local environment — never commit real paths or secrets
 .env
 
-# Build asset tarballs — download once per machine, do not commit
+# Build asset tarballs — not needed when using the official Spark image
 downloads/
 
-# Wheel cache — download once per machine, do not commit
+# Wheel cache — only needed for offline builds (optional)
 wheels/
 
 # Data — mounted at runtime, never committed
