@@ -6,10 +6,13 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Jupyter + data science packages (pyspark already on PYTHONPATH via SPARK_HOME)
+# Jupyter + data science packages.
+# pyspark is pip-installed explicitly so it lands in site-packages and is
+# importable without relying on PYTHONPATH from the base image.
 RUN pip install --no-cache-dir \
     pandas==2.0.3 \
     pyarrow==17.0.0 \
+    pyspark==3.5.1 \
     "jupyterlab==4.2.5" \
     "notebook==7.2.2"
 
