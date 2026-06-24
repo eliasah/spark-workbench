@@ -1,0 +1,33 @@
+# Local environment — never commit real paths or secrets
+.env
+
+# Build asset tarballs — not needed when using the official Spark image
+downloads/
+
+# Wheel cache — only needed for offline builds (optional)
+wheels/
+
+# Data — mounted at runtime, never committed
+data/
+*.parquet
+*.csv
+*.json
+*.avro
+*.orc
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.jupyter/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # Environment: give the compose file a valid DATAMART_HOST_PATH.
+      # ------------------------------------------------------------------
+      - name: Prepare .env and datamart directory
+        run: |
+          mkdir -p /tmp/datamart
+          echo "DATAMART_HOST_PATH=/tmp/datamart" > .env
+
+      # ------------------------------------------------------------------
+      # Build: pulls apache/spark from Docker Hub (layered CDN cache),
+      # then pip-installs pandas / pyarrow / notebook on top.
+      # ------------------------------------------------------------------
+      - name: Build Docker image
+        run: docker compose build
+
+      # ------------------------------------------------------------------
+      # Start + wait for Jupyter
+      # ------------------------------------------------------------------
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for Jupyter to be ready
+        run: |
+          echo "Waiting for Jupyter on port 8888..."
+          for i in $(seq 1 24); do
+            if curl -sf http://localhost:8888/api > /dev/null 2>&1; then
+              echo "Jupyter is up after $((i * 5))s"
+              exit 0
+            fi
+            echo "  attempt $i / 24..."
+            sleep 5
+          done
+          echo "Jupyter did not start in time"
+          docker compose logs
+          exit 1
+
+      # ------------------------------------------------------------------
+      # Smoke tests
+      # ------------------------------------------------------------------
+      - name: PySpark smoke test
+        run: |
+          docker compose exec -T spark-jupyter python3 - <<'EOF'
+          from pyspark.sql import SparkSession
+          spark = SparkSession.builder.master("local[1]").appName("ci").getOrCreate()
+          df = spark.createDataFrame([(1, "hello"), (2, "spark")], ["id", "word"])
+          assert df.count() == 2
+          assert df.filter("id = 1").first()["word"] == "hello"
+          print("PySpark smoke test PASSED")
+          spark.stop()
+          EOF
+
+      - name: pandas + pyarrow smoke test
+        run: |
+          docker compose exec -T spark-jupyter python3 - <<'EOF'
+          import pandas as pd
+          import pyarrow as pa
+          df = pd.DataFrame({"x": [1, 2, 3]})
+          table = pa.Table.from_pandas(df)
+          assert len(table) == 3
+          print(f"pandas {pd.__version__}  pyarrow {pa.__version__}  — PASSED")
+          EOF
+
+      - name: scala binary smoke test
+        run: |
+          docker compose exec -T spark-jupyter scala -version
+
+      - name: spark-shell smoke test
+        run: |
+          docker compose exec -T spark-jupyter bash -c \
+            'echo "val n = sc.parallelize(1 to 5).count(); assert(n == 5L); println(\"spark-shell PASSED\"); System.exit(0)" \
+             | spark-shell --master local[1] 2>/dev/null'
+
+      # ------------------------------------------------------------------
+      # Teardown
+      # ------------------------------------------------------------------
+      - name: Tear down
+        if: always()
+        run: docker compose down
