@@ -1,5 +1,7 @@
 # Spark Workbench
 
+![CI](https://github.com/eliasah/spark-workbench/actions/workflows/ci.yml/badge.svg)
+
 A Dockerized Spark 3.5.1 + Jupyter workspace for local data exploration.  
 The repository contains only infrastructure — large data files and Python wheel
 archives are external assets that each developer supplies on their own machine.
