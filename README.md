@@ -134,6 +134,50 @@ df_csv.show(5)
 
 ---
 
+## Scala REPL / spark-shell
+
+The image ships two Scala entry points:
+
+| Command | What it gives you |
+|---|---|
+| `spark-shell` | Spark Scala REPL — `SparkContext` and `SparkSession` pre-wired |
+| `scala` | Standalone Scala 2.12 REPL (no Spark context) |
+
+Both commands are on PATH inside the container.  Open a shell into a running
+container to use them:
+
+```bash
+# spark-shell (Spark context available as `spark` and `sc`)
+docker compose exec spark-jupyter spark-shell
+
+# standalone Scala REPL
+docker compose exec spark-jupyter scala
+```
+
+Or start a one-off container without launching Jupyter:
+
+```bash
+docker compose run --rm spark-jupyter spark-shell
+```
+
+### spark-shell example
+
+```scala
+import spark.implicits._
+
+val df = spark.read.parquet("/datamart/my_table/")
+df.printSchema()
+df.show(5)
+
+// basic aggregation
+df.groupBy("category").count().orderBy($"count".desc).show()
+```
+
+`/datamart` is available inside the shell because the same volume mount
+applies to every process in the container.
+
+---
+
 ## Project structure
 
 ```
@@ -157,6 +201,7 @@ df_csv.show(5)
 |---|---|
 | Apache Spark | 3.5.1 |
 | pyspark | 3.5.1 |
+| Scala | 2.12.18 |
 | Python | 3.8 |
 | pandas | 2.0.3 |
 | pyarrow | 17.0.0 |
