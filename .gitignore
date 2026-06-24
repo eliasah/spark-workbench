@@ -1,0 +1,30 @@
+# Local environment — never commit real paths or secrets
+.env
+
+# Wheel cache — download once per machine, do not commit
+wheels/
+
+# Data — mounted at runtime, never committed
+data/
+*.parquet
+*.csv
+*.json
+*.avro
+*.orc
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.jupyter/
+
+# OS
+.DS_Store
+Thumbs.db

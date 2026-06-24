@@ -1,0 +1,16 @@
+services:
+  spark-jupyter:
+    build:
+      context: .
+      dockerfile: spark/Dockerfile
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    volumes:
+      - ./notebooks:/workspace/notebooks
+      - ./src:/workspace/src
+      - ${DATAMART_HOST_PATH}:/datamart
+    environment:
+      WORKSPACE_ROOT: /workspace
+      DATAMART_ROOT: /datamart
+      PYSPARK_SUBMIT_ARGS: "--driver-memory 6g pyspark-shell"
