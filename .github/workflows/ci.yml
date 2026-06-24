@@ -26,14 +26,16 @@ jobs:
       - name: Download Python wheels
         if: steps.cache-wheels.outputs.cache-hit != 'true'
         run: |
-          pip download \
-            --dest wheels \
+          # pandas and pyarrow have C extensions — must be platform-specific wheels.
+          pip download --dest wheels \
             --platform manylinux_2_17_x86_64 \
-            --implementation cp \
-            --python-version 38 \
-            --abi cp38 \
+            --implementation cp --python-version 38 --abi cp38 \
             --only-binary=:all: \
-            pandas==2.0.3 pyarrow==17.0.0 pyspark==3.5.1 notebook
+            pandas==2.0.3 pyarrow==17.0.0
+
+          # pyspark and notebook are pure-Python (none-any wheels).
+          # --platform + --only-binary causes pip to reject them, so download separately.
+          pip download --dest wheels pyspark==3.5.1 py4j==0.10.9.7 notebook
 
       # ------------------------------------------------------------------
       # Environment: give the compose file a valid DATAMART_HOST_PATH.

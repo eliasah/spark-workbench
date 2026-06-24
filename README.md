@@ -49,30 +49,41 @@ stays clean.
 Wheels must be downloaded **before** the first `docker compose build` because
 the Docker build runs fully offline after this step.
 
+Two commands are required because `pandas` and `pyarrow` contain C extensions
+and need platform-specific manylinux binaries, while `pyspark` and `notebook`
+are pure Python and must be downloaded **without** the `--platform` flag
+(pip rejects their `none-any` wheels when a specific platform is requested).
+
 **Linux / macOS:**
 
 ```bash
-pip download \
-  --dest wheels \
+# C-extension packages — download the manylinux binary wheels
+pip download --dest wheels \
   --platform manylinux_2_17_x86_64 \
-  --implementation cp \
-  --python-version 38 \
-  --abi cp38 \
+  --implementation cp --python-version 38 --abi cp38 \
   --only-binary=:all: \
-  pandas==2.0.3 pyarrow==17.0.0 pyspark==3.5.1 notebook
+  pandas==2.0.3 pyarrow==17.0.0
+
+# Pure-Python packages — no platform flag needed
+pip download --dest wheels pyspark==3.5.1 py4j==0.10.9.7 notebook
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-pip download --dest wheels --platform manylinux_2_17_x86_64 --implementation cp `
-  --python-version 38 --abi cp38 --only-binary=:all: `
-  pandas==2.0.3 pyarrow==17.0.0 pyspark==3.5.1 notebook
+# C-extension packages
+pip download --dest wheels `
+  --platform manylinux_2_17_x86_64 `
+  --implementation cp --python-version 38 --abi cp38 `
+  --only-binary=:all: `
+  pandas==2.0.3 pyarrow==17.0.0
+
+# Pure-Python packages
+pip download --dest wheels pyspark==3.5.1 py4j==0.10.9.7 notebook
 ```
 
-> `notebook` provides the Jupyter server.  The remaining packages (`notebook`
-> and its transitive dependencies) are resolved automatically by pip and stored
-> in `wheels/`.  The `wheels/` directory is gitignored — do not commit it.
+> All packages and their transitive dependencies are stored in `wheels/`.
+> The `wheels/` directory is gitignored — do not commit it.
 
 ---
 
